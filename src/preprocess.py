@@ -1,19 +1,19 @@
-import json
 import os
 
-import folium
 import geopandas as gpd
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import pygris
-# from pygris import fips_codes
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection
 from shapely.ops import unary_union
 from shapely.validation import make_valid
 
+from .utils import _save_geopackage, _polygon_to_multipolygon, _geomcollection_to_multipolygon
+
 
 CRS = 32610
+# todo check the order of .to_crs functions
 sld_selected_columns = ['GEOID10', 'CSA_Name', 'CBSA_Name', 'Ac_Land', 'Ac_Unpr', 'Ac_Water', 'TotPop', 'CountHU',
                         'HH', 'P_WrkAge', 'White', 'Male', 'Residents', 'Drivers', 'Vehicles', 'GasPrice', 'Pct_AO0',
                         'R_LowWageWk', 'R_MedWageWk', 'R_HiWageWk', 'R_PCTLOWWAGE', 'E_LowWageWk', 'E_MedWageWk',
@@ -25,39 +25,6 @@ columns_to_keep = [
     'LowWage_Category_Home', 'LowWage_Category_Work', 'LowWage_Combined_home_work', 'LOCALE'
 ]
 
-# todo check the order of .to_crs functions
-
-
-def _save_geopackage(gdf, folder_path, filename, driver=None):
-    ## Saving the file
-    os.makedirs(folder_path, exist_ok=True)  # make sure folder exists
-    filepath = os.path.join(folder_path, filename)  # we use .gpkg instead of .shp in order to keep column names
-    # gdf.to_file(filepath, driver="GPKG")
-    gdf.to_file(filepath, driver=driver)
-    print(f'\n---- Saved {filepath}')
-
-
-def _geomcollection_to_multipolygon(geom):
-    if isinstance(geom, Polygon):
-        return MultiPolygon([geom])          # convert single Polygon to MultiPolygon
-    elif isinstance(geom, MultiPolygon):
-        return geom                          # already fine
-    elif isinstance(geom, GeometryCollection):
-        # extract only Polygon/MultiPolygon parts
-        polygons = [g for g in geom.geoms if isinstance(g, (Polygon, MultiPolygon))]
-        if polygons:
-            return MultiPolygon([p for poly in polygons for p in
-                                 (poly.geoms if isinstance(poly, MultiPolygon) else [poly])])
-        else:
-            return None                       # no polygons inside
-    else:
-        return None                            # other geometry types
-
-
-def _polygon_to_multipolygon(gdf):
-# turn everything into MultiPolygon.
-    gdf["geometry"] = gdf["geometry"].apply(lambda geom:
-                                            MultiPolygon([geom]) if isinstance(geom, Polygon) else geom)
 
 
 def _custom_summary(x):
@@ -323,11 +290,15 @@ def export_summary_statistics(CBG_gdf):
     return descript_summary
 
 
-def save_files(save_dir, descript_summary, CBG_outside_pc_gdf, CBG_outside_gdf, population_centers_study_area):
+def save_files(save_dir, descript_summary, studyarea, CBG_outside_pc_gdf, CBG_outside_gdf, population_centers_study_area):
     print('\n ---- saving files:')
     path = os.path.join(save_dir,'descript_category_0.xlsx')
     descript_summary.to_excel(path)
     print(f"saved {path}")
+
+    _save_geopackage(studyarea, save_dir, "studyarea.gpkg", driver="GPKG")
+    print(f"saved study area data to studyarea.gpkg")
+
 
     path = os.path.join(save_dir, 'CBG_outside_PCs_data_0.xlsx')
     CBG_gdf_data_0 = CBG_outside_pc_gdf.drop(columns='geometry')
@@ -339,39 +310,21 @@ def save_files(save_dir, descript_summary, CBG_outside_pc_gdf, CBG_outside_gdf, 
     CBG_outside_pc_data_1.to_excel(path, index=False)
     print(f"saved subsetted data to CBG_outside_PCs_data_1.xlsx")
 
-    _save_geopackage(population_centers_study_area, os.path.join(save_path, "POPULATION_CENTERS_WA_AREA"),
-                     "POPULATION_CENTERS_WA_AREA.shp", driver=None)
-    _save_geopackage(CBG_outside_gdf, save_path, "CBGs_NOT_INTERSECT_PCs.gpkg", driver='GPKG')
-    _save_geopackage(CBG_outside_pc_gdf, save_path, "CBGs_RIGHT_OUTSIDE_PCs.gpkg", driver='GPKG')
-    print('saved POPULATION_CENTERS_WA_AREA.shp, CBGs_NOT_INTERSECT_PCs.gpkg, CBGs_RIGHT_OUTSIDE_PCs.gpkg')
+    _save_geopackage(population_centers_study_area, save_dir,
+                     "POPULATION_CENTERS_STUDY_AREA.gpkg", driver="GPKG")
+    _save_geopackage(CBG_outside_gdf, save_dir, "CBGs_NOT_INTERSECT_PCs.gpkg", driver='GPKG')
+    _save_geopackage(CBG_outside_pc_gdf, save_dir, "CBGs_RIGHT_OUTSIDE_PCs.gpkg", driver='GPKG')
+    # print('saved POPULATION_CENTERS_WA_AREA.gpkg, CBGs_NOT_INTERSECT_PCs.gpkg, CBGs_RIGHT_OUTSIDE_PCs.gpkg')
 
 
-def preprocess_POI_data(POI_path):
-    ### WE NEED TO MAKE A SHAPEFILE FOR THE POI DATA From given geojson WA WE CAN USE IN ARC GIS PRO
-    #### How did Panick get this data? did the website give poi for the specific study area?
-    print('\n---- reading POI geojson data')
-    # method1
-    POI_gdf = gpd.read_file(POI_path)
-    # this reads the geojson file and skips columns that have bad types (lists)
-    # now we convert it into shapefile so that arcGisPro can read it (todo or make geopackage)
-    _save_geopackage(POI_gdf, os.path.join(save_path, "poi_data"), 'POI_data.shp')
-    print('saved POI_data.shp')
-
-    # method 2  --- open geojson using Json to Features tool -- recommended
-    # import arcpy
-    # ans = arcpy.conversion.JSONToFeatures(
-    #     in_json_file=r"C:\Users\Soheil99\OneDrive - UW\0 Research\UW Tacoma\my copy - Satellite Communities Project\Data\POI Data\WA_Study_Area.geojson",
-    #     out_features=r"C:\Users\Soheil99\OneDrive - UW\0 Research\UW Tacoma\my copy - Satellite Communities Project\Analysis\RuralATGapFinder\ArcGIS_test\ArcGIS_test.gdb\WA_Study_Area_JSONToFeatures",
-    #     geometry_type="POINT"
-    # )
 
 
-def preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_path, POI_path, save_path=None):
+def preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_path, save_path=None):
     # studyarea, state_FIPS = gpd.read_file(os.path.join(save_path, 'temp.shp')), '53'
     studyarea, state_FIPS = get_study_area(state_in, counties_in)
     state_SLD_CBGs = get_smart_location_db(sld_gdb_path, state_FIPS)
     study_CBGs = filter_CBGs_by_area_and_columns(state_SLD_CBGs, studyarea)
-    _save_geopackage(study_CBGs, save_path, "study_area_CBGs_inital.gpkg", driver="GPKG") #todo move to save function
+    # _save_geopackage(study_CBGs, save_path, "study_area_CBGs_inital.gpkg", driver="GPKG") #todo move to save function
     study_CBGs = add_income_to_CBGs(study_CBGs)
     _save_geopackage(study_CBGs, save_path, "study_area_CBGs_INCOME.gpkg", driver="GPKG") #todo move to save function
     # a = study_CBGs['LowWage_Combined_home_work'].value_counts().reset_index() #debug
@@ -384,11 +337,13 @@ def preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_path, POI
     area_type = read_area_type_data(nces_path)
     # now we find the area type of each CBG that intersects with population centers
     study_CBGs_outside_PCs = filter_CBGs_by_area_type(study_CBGs_outside_PCs, area_type)
+
     descript_summary = export_summary_statistics(study_CBGs_outside_PCs)
     if save_path:
-        save_files(save_path, descript_summary, study_CBGs_outside_PCs, study_CBGs_outside, pop_centers_study_area)
-    preprocess_POI_data(POI_path) #todo move to .pyt file
-    return study_CBGs_outside_PCs, study_CBGs_outside, study_CBGs_with_PCs, pop_centers_study_area
+        save_files(save_path, descript_summary, studyarea, study_CBGs_outside_PCs,
+                   study_CBGs_outside, pop_centers_study_area)
+
+    return studyarea, study_CBGs, study_CBGs_outside_PCs, study_CBGs_outside, study_CBGs_with_PCs, pop_centers_study_area
 
 
 
@@ -409,5 +364,5 @@ if __name__ == '__main__':
     # pop_ctr_path = r"/Users/soheil/Library/CloudStorage/OneDrive-UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/WSDOT_-_Population_Centers/WSDOT_-_Population_Centers.shp"
     # nces_WA_path = r"/Users/soheil/Library/CloudStorage/OneDrive-UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/edge_locale24_nces_WA"
     # save_path = r"/Users/soheil/Library/CloudStorage/OneDrive-UW/0 Research\UW Tacoma\my copy - Satellite Communities Project\Analysis\RuralATGapFinder\out"
-    preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_WA_path, POI_path, save_path=save_path)
+    preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_WA_path, save_path=save_path)
 

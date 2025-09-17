@@ -171,39 +171,39 @@ class RuralActiveTransportAnalysis(object):
             # Set environment settings
             arcpy.env.overwriteOutput = True
             
-            # # Get parameters
-            # state_name = parameters[0].valueAsText
-            ## county_field = parameters[1].valueAsText
-            # county_names = parameters[2].valueAsText
-            # county_names = [f"'{c.strip()}'" for c in county_names.split(",")]
-            # population_fc = parameters[3].valueAsText
-            # # cbg_outside_pop = parameters[4].valueAsText
-            # sld_cbg_path = parameters[4].valueAsText
-            # state_roads_fc = parameters[5].valueAsText
-            # county_roads_fc = parameters[6].valueAsText
-            # parcel_fc = parameters[7].valueAsText
-            # parcel_field = parameters[8].valueAsText
-            # poi_fc = parameters[9].valueAsText
-            # road_buffer_dist = float(parameters[10].value or 300)
-            # nces_path = parameters[11].valueAsText
-            # output_gdb = parameters[12].valueAsText or arcpy.env.scratchGDB
-            # save_path = parameters[13].valueAsText
+            # Get parameters
+            state_name = parameters[0].valueAsText
+            # county_field = parameters[1].valueAsText
+            county_names = parameters[2].valueAsText
+            county_names = [f"'{c.strip()}'" for c in county_names.split(",")]
+            population_fc = parameters[3].valueAsText
+            # cbg_outside_pop = parameters[4].valueAsText
+            sld_cbg_path = parameters[4].valueAsText
+            state_roads_fc = parameters[5].valueAsText
+            county_roads_fc = parameters[6].valueAsText
+            parcel_fc = parameters[7].valueAsText
+            parcel_field = parameters[8].valueAsText
+            poi_fc = parameters[9].valueAsText
+            road_buffer_dist = float(parameters[10].value or 300)
+            nces_path = parameters[11].valueAsText
+            output_gdb = parameters[12].valueAsText or arcpy.env.scratchGDB
+            save_path = parameters[13].valueAsText
 
-            # Get parameters --- uncomment this section when debugging through a python .py file
-            state_name = parameters[0]
-            # county_field = parameters[1]
-            county_names = parameters[2]
-            population_fc = parameters[3]
-            sld_cbg_path = parameters[4]
-            state_roads_fc = parameters[5]
-            county_roads_fc = parameters[6]
-            parcel_fc = parameters[7]
-            parcel_field = parameters[8]
-            poi_gjson = parameters[9]
-            road_buffer_dist = float(parameters[10] or 300)
-            nces_path = parameters[11]
-            output_gdb = parameters[12]
-            save_path = parameters[13]
+#             # Get parameters --- uncomment this section when debugging through a python .py file
+#             state_name = parameters[0]
+#             # county_field = parameters[1]
+#             county_names = parameters[2]
+#             population_fc = parameters[3]
+#             sld_cbg_path = parameters[4]
+#             state_roads_fc = parameters[5]
+#             county_roads_fc = parameters[6]
+#             parcel_fc = parameters[7]
+#             parcel_field = parameters[8]
+#             poi_gjson = parameters[9]
+#             road_buffer_dist = float(parameters[10] or 300)
+#             nces_path = parameters[11]
+#             output_gdb = parameters[12]
+#             save_path = parameters[13]
 
             # Create output geodatabase if specified and doesn't exist
             if output_gdb != arcpy.env.scratchGDB and not arcpy.Exists(output_gdb):

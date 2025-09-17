@@ -1,23 +1,39 @@
 # RuralATGapFinder
 A tool to analyze and visualize active transportation disparity for rural residential communities in Washington state
 
-## environment setup
-``conda activate "C:\Users\Soheil99\AppData\Local\Programs\ArcGIS\Pro\bin\Python\envs\arcgispro-py3"
-``
-
-clone an environment from 'package manager' in arcgis
-``conda activate arcgispro-cloned
-``
+## Environment setup
+#### if you don't have anaconda on your system (https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/what-is-conda.htm):
+1. open "python command prompt" from ArcGIS folder
+2. clone the default conda env of ArcGISPro
+3. activate your new environment and install `geopandas` and `pygris` packages: 
 ```angular2html
-conda activate arcgispro-cloned
+<!-- in Python Command Prompt in ArcGIS folder -->
+conda create --clone arcgispro-py3 --name my_env --pinned
+conda activate my_env
 conda install geopandas 
 pip install pygris
 ```
 
+#### If you already have conda on your system: 
+1. Open Package Manager for ArcGIS Project tab
+2. clone the default package and copy the path in which you are cloning your new environment. 
+Activate your new environment
+   
+   - this may also work. not sure. `conda create --clone "C:\Users\Soheil99\AppData\Local\Programs\ArcGIS\Pro\bin\Python\envs\arcgispro-py3" --name my_env`
+```angular2html
+<!-- in Windows Command Prompt or python IDE (e.g. PyCharm, VS code, ...) terminal -->
+conda activate "C:\Users\**USER NAME**\AppData\Local\ESRI\conda\envs\arcgispro-py3-clone"
+conda install geopandas -y
+pip install pygris
+```
+
+<img src="./assets/Screenshot.png" alt="Screenshot of the cloning process" width="700">
+
+
 ## how to use the code
-- open arcgis pro
-- activate environemnt
-- add new tools 
+- Open  a project on ArcGIS pro
+- In Package Manager, make sure the new environment is activated
+- add new tools in project's Catalog
 - ...
 
 ### data preparation:
