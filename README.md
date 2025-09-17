@@ -43,7 +43,11 @@ pip install pygris
 - 
 
 ## some notes:
-
+- instruction on how to organize input files so that people don't have to have a lot of inputs
+- try to have everything all gpd so that you can open source your code
+- read ToDo comments
+- right outside criteria is really good? 
+- bad geometries in parcel gdf - use repair geometries tool or make_valid or ogr2ogr?
 be mindful of crs conversions in the notebook file
 
 some CBGs after filtering steps only have water. somehow we should remove them

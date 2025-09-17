@@ -43,7 +43,10 @@ def filter_SR_POI(POI_SR_path, save_path=None):
     print('\n---- Processing SR-buffered POI data')
     ### AFTER GETTING THE SHAPEFILE OF POI WITHIN 300 FT OF _ **SR**_ FROM ARCGIS PRO,
     # WE NEED TO FILTER THEM OUT HERE TO KEEP ONLY THOSE THAT COULD BE CONSIDERED AS PRIMARY POI
-    POI_Within_SR_Buffer_0 = gpd.read_file(POI_SR_path)
+    if type(POI_SR_path) is tuple:
+        POI_Within_SR_Buffer_0 = gpd.read_file(POI_SR_path[0], layer=POI_SR_path[1])
+    else:
+        POI_Within_SR_Buffer_0 = gpd.read_file(POI_SR_path)
     POI_Within_SR_Buffer_1 = POI_Within_SR_Buffer_0.copy()
     POI_Within_SR_Buffer_1['categories_json'] = POI_Within_SR_Buffer_1['categories'].apply(parse_categories)
     POI_Within_SR_Buffer_1['primary_category'] = POI_Within_SR_Buffer_1['categories_json'].apply(
@@ -91,23 +94,29 @@ def filter_SR_POI(POI_SR_path, save_path=None):
     )
 
     print(f"Final data head before writing to shapefile has {len(POI_Within_SR_Buffer_3)} features.")
-    _save_geopackage(POI_Within_SR_Buffer_3, save_path,'POI_Within_SR_Buffer_Filtered.gpkg', driver="GPKG")
-    print(f"-----> Successfully wrote filtered poi data to: POI_Within_SR_Buffer_Filtered.gpkg")
-    return POI_Within_SR_Buffer_3
+    file_name = 'POI_Within_SR_Buffer_Filtered.gpkg'
+    _save_geopackage(POI_Within_SR_Buffer_3, save_path, file_name, driver="GPKG")
+    print(f"-----> Successfully wrote filtered poi data to: {file_name}")
+    return POI_Within_SR_Buffer_3, file_name
 
 
-def filter_CR_POI():
-    pass
+def filter_CR_POI(POI_CR_path, save_path=None):
+    #todo
+    return None, None
 
 
-def filter_POIs(POI_SR_path, POI_CR_path, save_path):
-    sr_POIs = filter_SR_POI(POI_SR_path, save_path)
-    print('debuggg')
-    pass
+def filter_SR_and_CR_POIs(POI_SR_path, POI_CR_path, save_path):
+    filtered_sr_POIs, filtered_sr_POIs_filename = filter_SR_POI(POI_SR_path, save_path)
+    filtered_cr_POIs, filtered_sr_POIs_filename = filter_CR_POI(POI_CR_path, save_path)
+    return filtered_sr_POIs, filtered_sr_POIs_filename, filtered_cr_POIs, filtered_sr_POIs_filename
+
+def filter_POIs(gdb_path, POI_layer, save_path):
+    filtered_POIs, filtered_POIs_filename = filter_SR_POI((gdb_path, POI_layer), save_path)
+    return filtered_POIs, filtered_POIs_filename
 
 
 if __name__ == '__main__':
     POI_SR_path = r"C:/Users/Soheil99/OneDrive - UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/POI Within 300 ft SR/POI_CBG_Right_Outside_PC_SR_Buffer.shp"
     POI_CR_path = r"C:/Users/Soheil99/OneDrive - UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/POI Within 300 ft CR/POI_CBG_Right_Outside_PC_CR_Buffer.shp"
     save_path = r"C:\Users\Soheil99\OneDrive - UW\0 Research\UW Tacoma\my copy - Satellite Communities Project\Analysis\RuralATGapFinder\out"
-    filter_POIs(POI_SR_path, POI_CR_path, save_path=save_path)
+    filter_SR_and_CR_POIs(POI_SR_path, POI_CR_path, save_path=save_path)

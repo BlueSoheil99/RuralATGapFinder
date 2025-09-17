@@ -12,6 +12,7 @@ from shapely.validation import make_valid
 from .utils import _save_geopackage, _polygon_to_multipolygon, _geomcollection_to_multipolygon
 
 
+landuse_code_field = 'LANDUSE_CD'
 CRS = 32610
 # todo check the order of .to_crs functions
 sld_selected_columns = ['GEOID10', 'CSA_Name', 'CBSA_Name', 'Ac_Land', 'Ac_Unpr', 'Ac_Water', 'TotPop', 'CountHU',
@@ -78,7 +79,8 @@ def get_study_area(state, counties, save_map_path=None):
         plt.title(f"{state} Study Area Counties")
         plt.savefig(save_map_path)
         print("---- \t map saved to {}".format(save_map_path))
-    return studyarea, state_FIPS
+    # return studyarea, state_FIPS  # original code
+    return studyarea.to_crs(CRS), state_FIPS
 
 
 def get_smart_location_db(database_path, state_fips, database_layer="EPA_SLD_Database_V3"):
@@ -318,8 +320,7 @@ def save_files(save_dir, descript_summary, studyarea, CBG_outside_pc_gdf, CBG_ou
 
 
 
-
-def preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_path, save_path=None):
+def preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_path, parcel_path, save_path=None):
     # studyarea, state_FIPS = gpd.read_file(os.path.join(save_path, 'temp.shp')), '53'
     studyarea, state_FIPS = get_study_area(state_in, counties_in)
     state_SLD_CBGs = get_smart_location_db(sld_gdb_path, state_FIPS)
@@ -343,8 +344,20 @@ def preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_path, sav
         save_files(save_path, descript_summary, studyarea, study_CBGs_outside_PCs,
                    study_CBGs_outside, pop_centers_study_area)
 
+    preprocess_parcels(parcel_path, studyarea, save_path)  # this was not part of the original R file
+
     return studyarea, study_CBGs, study_CBGs_outside_PCs, study_CBGs_outside, study_CBGs_with_PCs, pop_centers_study_area
 
+
+def preprocess_parcels(parcels_path, studyarea, save_path):
+    print('\n---- Preparing parcels inside studyarea and validating their geometries')
+    parcel_gdf = gpd.read_file(parcels_path).to_crs(32610)
+    mask = parcel_gdf[landuse_code_field].isin([11, 12, 13, 14, 15])
+    parcel_gdf = parcel_gdf[mask]
+    parcel_gdf = parcel_gdf.make_valid()
+    studyarea_gdf = studyarea.to_crs(CRS)
+    parcels_in_cbg_gdf = gpd.clip(parcel_gdf.to_crs(32610), studyarea_gdf.to_crs(32610))
+    _save_geopackage(parcels_in_cbg_gdf, save_path, 'parcels_in_cbgs.gpkg', driver='GPKG')
 
 
 if __name__ == '__main__':
