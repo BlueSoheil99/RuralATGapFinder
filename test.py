@@ -38,5 +38,6 @@ if __name__ == '__main__':
     parameters = [state_in, 'COUNTY', counties_in, pop_ctr_path, sld_gdb_path,
                   state_roads_fc, county_roads_fc, parcel_fc, 'LANDUSE_CD', POI_path,
                   road_buffer_dist, nces_WA_path, output_gdb, save_path]
+    # parameters = r'C:\Users\Soheil99\OneDrive - UW\0 Research\UW Tacoma\my copy - Satellite Communities Project\Analysis\RuralATGapFinder\assets\example.yml'
     test.execute(parameters, None)
 

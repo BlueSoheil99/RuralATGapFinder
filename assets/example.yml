@@ -1,0 +1,16 @@
+
+
+state_name: "WA"
+County Name Field: "COUNTY"
+County Names (comma separated): "King, Pierce, Snohomish, Kitsap, Skagit, Island, Thurston, Lewis, Mason, Whatcom, San Juan, Clallam, Jefferson, Grays Harbor, Pacific, Wahkiakum, Cowlitz, Clark, Skamania"
+Population Centers Layer: "C:/Users/Soheil99/OneDrive - UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/WSDOT_-_Population_Centers/WSDOT_-_Population_Centers.shp"
+Census Block Groups data from smart location dataset: "C:\\Users\\Soheil99\\OneDrive - UW\\0 Research\\UW Tacoma\\my copy - Satellite Communities Project\\Data\\SmartLocationDatabase.gdb"
+State Roads Layer: "C:\\Users\\Soheil99\\OneDrive - UW\\0 Research\\UW Tacoma\\my copy - Satellite Communities Project\\Data\\WSDOT_-_Legacy_State_Highways\\WSDOT_-_Legacy_State_Highways.shp"
+County Roads Layer: "C:\\Users\\Soheil99\\OneDrive - UW\\0 Research\\UW Tacoma\\my copy - Satellite Communities Project\\Data\\WSDOT_-_County_Road_(CRAB)\\WSDOT_-_County_Road_(CRAB).shp"
+Parcels Layer: "C:\\Users\\Soheil99\\OneDrive - UW\\0 Research\\UW Tacoma\\my copy - Satellite Communities Project\\Data\\Current_Parcels\\Parcels_2024.shp"
+Parcel Land Use Field: "LANDUSE_CD"
+Points of Interest (POI) Layer (geojson): "C:/Users/Soheil99/OneDrive - UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/POI Data/WA_Study_Area.geojson"
+Buffer Distance around Roads for POI Analysis (feet): 300
+NCES Locale data for area type identification: "C:/Users/Soheil99/OneDrive - UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/edge_locale24_nces_WA"
+Output Geodatabase: "C:\\Users\\Soheil99\\OneDrive - UW\\0 Research\\UW Tacoma\\my copy - Satellite Communities Project\\Analysis\\RuralATGapFinder\\out\\out.gdb"
+Output save directory: "C:\\Users\\Soheil99\\OneDrive - UW\\0 Research\\UW Tacoma\\my copy - Satellite Communities Project\\Analysis\\RuralATGapFinder\\out"

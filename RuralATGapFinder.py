@@ -1,6 +1,7 @@
 import os
 import arcpy
 import geopandas as gpd
+import yaml
 
 from src.preprocess import preprocess
 from src.process_poi import filter_POIs
@@ -23,6 +24,16 @@ class RuralActiveTransportAnalysis(object):
 
     def getParameterInfo(self):
         """Define parameters following the exact workflow requirements"""
+
+        # # Input 0: config file -- if you want to load preset input quickly.
+        # config_file = arcpy.Parameter(
+        #     displayName="config_file_address",
+        #     name="config_file",
+        #     datatype="GPString",
+        #     parameterType="Required",
+        #     direction="Input"
+        # )
+        # return [config_file]
 
         # Input 1: State Counties
         state_name = arcpy.Parameter(
@@ -105,7 +116,7 @@ class RuralActiveTransportAnalysis(object):
             direction="Input"
         )
 
-        # Input 9: Parcel Land Use Field
+        # Input 9: Parcel Land Use Field -- todo: could be deleted
         parcel_field = arcpy.Parameter(
             displayName="Parcel Land Use Field",
             name="parcel_field",
@@ -168,28 +179,36 @@ class RuralActiveTransportAnalysis(object):
 
     def execute(self, parameters, messages):
         """Execute the rural active transportation analysis following the exact workflow"""
+        parameters = extract_params(parameters)
 
         try:
             # Set environment settings
             arcpy.env.overwriteOutput = True
 
+            # ###### option1: input all file names ######
             # # Get parameters
             # self.state_name = parameters[0].valueAsText
-            ## self.county_field = parameters[1].valueAsText
+            # # self.county_field = parameters[1].valueAsText
             # self.county_names = parameters[2].valueAsText
-            # self.county_names = [f"'{c.strip()}'" for c in county_names.split(",")]
+            # self.county_names = [f'{c.strip()}' for c in self.county_names.split(",")]
+            # arcpy.AddMessage(self.county_names)
+            #
             # self.population_fc = parameters[3].valueAsText
-            # self.# cbg_outside_pop = parameters[4].valueAsText
+            # #self.cbg_outside_pop = parameters[4].valueAsText
             # self.sld_cbg_path = parameters[4].valueAsText
             # self.state_roads_fc = parameters[5].valueAsText
             # self.county_roads_fc = parameters[6].valueAsText
             # self.parcel_fc = parameters[7].valueAsText
-            ## self.parcel_field = parameters[8].valueAsText
+            # # self.parcel_field = parameters[8].valueAsText
             # self.poi_geojson = parameters[9].valueAsText
             # self.road_buffer_dist = float(parameters[10].value or 300)
             # self.nces_path = parameters[11].valueAsText
             # self.output_gdb = parameters[12].valueAsText or arcpy.env.scratchGDB
             # self.save_path = parameters[13].valueAsText
+
+            ###### option2: input just a config file address ######
+            # arcpy.AddMessage(parameters[0].valueAsText)
+            # parameters = extract_params(parameters[0].valueAsText)
 
             # Get parameters --- uncomment this section when debugging through a python .py file
             self.state_name = parameters[0]
@@ -355,43 +374,8 @@ class RuralActiveTransportAnalysis(object):
             # STEP 6: POIs ALONG STATE AND COUNTY ROADS (300ft Buffer)
             # ==============================================================
             arcpy.AddMessage(f"Step 6: Finding POIs within {self.road_buffer_dist}ft of rural roads...")
-            poi_fc = os.path.join(self.output_gdb, "Temp_POIs_all")
-            # POI data that we have originally is in geojson format so I first turn it into feature layer
-            arcpy.conversion.JSONToFeatures(
-                    in_json_file=self.poi_geojson,
-                    out_features=poi_fc,
-                    geometry_type="POINT"
-                )
 
-            # Remove POIs inside population centers -
-            # todo: people my want to travel into pop center's I don't think this step is needed
-            pois_outside_pop = os.path.join(self.output_gdb, "Temp_POIs_Outside_PopCenters")
-            self._delete_if_exists(pois_outside_pop)
-            arcpy.Erase_analysis(poi_fc, self.pop_centers_selected, pois_outside_pop)
-
-            # Create buffer around rural roads
-            self.roads_buffer = os.path.join(self.output_gdb, "Step6_Roads_Buffer_Zone")
-            self._delete_if_exists(self.roads_buffer)
-            arcpy.Buffer_analysis(self.roads_final, self.roads_buffer,
-                                  f"{self.road_buffer_dist} Feet",
-                                  "FULL", "ROUND", "ALL")
-
-            # Find POIs within buffer of rural roads
-            pois_accessible = os.path.join(self.output_gdb, "Step6_POIs_Accessible_From_Rural_Roads")
-            self._delete_if_exists(pois_accessible)
-            arcpy.Clip_analysis(pois_outside_pop, self.roads_buffer, pois_accessible)
-
-            # Clean up
-            self._delete_if_exists(pois_outside_pop)
-            self._delete_if_exists(poi_fc)
-
-            #TODO -- filter POIs from R analysis codes
-            _, filtered_POIs_filename = filter_POIs(self.output_gdb,
-                                                    'Step6_POIs_Accessible_From_Rural_Roads', self.save_path)
-            # _, filtered_POIs_filename = filter_POIs(pois_accessible, self.save_path)
-            self.pois_accessible_filtered = self.add_fc_from_geopackage("Step6_POIs_Accessible_Filtered",
-                                                                   filtered_POIs_filename)
-
+            self.pois_accessible_filtered = self.step6_process_POIs()
             poi_count = int(arcpy.GetCount_management(self.pois_accessible_filtered)[0])
             arcpy.AddMessage(f"   {poi_count} POIs accessible from rural roads")
 
@@ -510,6 +494,48 @@ class RuralActiveTransportAnalysis(object):
         self._delete_if_exists(roads_clipped)  # Clean up temporary data
         return roads_outside_pop
 
+    def step6_process_POIs(self):
+        poi_fc = os.path.join(self.output_gdb, "Temp_POIs_all")
+        # POI data that we have originally is in geojson format so I first turn it into feature layer
+        arcpy.conversion.JSONToFeatures(
+            in_json_file=self.poi_geojson,
+            out_features=poi_fc,
+            geometry_type="POINT"
+        )
+
+        # Remove POIs inside population centers -
+        # todo: people may want to travel into pop center's I don't think this step is needed
+        pois_outside_pop = os.path.join(self.output_gdb, "Temp_POIs_Outside_PopCenters")
+        self._delete_if_exists(pois_outside_pop)
+        arcpy.Erase_analysis(poi_fc, self.pop_centers_selected, pois_outside_pop)
+        # Create buffer around rural roads
+        self.roads_buffer = os.path.join(self.output_gdb, "Step6_Roads_Buffer_Zone")
+        self._delete_if_exists(self.roads_buffer)
+        arcpy.Buffer_analysis(self.roads_final, self.roads_buffer,
+                              f"{self.road_buffer_dist} Feet",
+                              "FULL", "ROUND", "ALL")
+        # Find POIs within buffer of rural roads
+        temp_name = "Temp_POIs_Accessible_From_Rural_Roads"
+        pois_accessible = os.path.join(self.output_gdb, temp_name)
+        self._delete_if_exists(pois_accessible)
+        arcpy.Clip_analysis(pois_outside_pop, self.roads_buffer, pois_accessible)
+
+        # Clean up
+        self._delete_if_exists(pois_outside_pop)
+        self._delete_if_exists(poi_fc)
+
+        ## new -- filter POIs from R analysis codes
+        _, filtered_POIs_filename = filter_POIs(self.output_gdb,
+                                                temp_name,
+                                                self.save_path)
+        # In R files CR and SR roads were analysed separately tho todo: check this
+        pois_accessible_filtered_path = (
+            self.add_fc_from_geopackage("Step6_POIs_Accessible_From_Rural_Roads_Filtered",
+                                        filtered_POIs_filename)
+        )
+        self._delete_if_exists(poi_fc)
+        return pois_accessible_filtered_path
+
     def _delete_if_exists(self, dataset):
         """Helper function to delete dataset if it exists"""
         if arcpy.Exists(dataset):
@@ -517,3 +543,9 @@ class RuralActiveTransportAnalysis(object):
                 arcpy.Delete_management(dataset)
             except:
                 pass  # Continue if deletion fails
+
+
+def extract_params(config_file):
+    with open(config_file, "r") as f:
+        config = yaml.safe_load(f)
+    return list(config.values())
