@@ -100,15 +100,20 @@ def filter_SR_POI(POI_SR_path, save_path=None):
     return POI_Within_SR_Buffer_3, file_name
 
 
-def filter_CR_POI(POI_CR_path, save_path=None):
-    #todo
-    return None, None
+# def filter_CR_POI(POI_CR_path, save_path=None):
+#     #todo
+#     return None, None
 
 
 def filter_SR_and_CR_POIs(POI_SR_path, POI_CR_path, save_path):
+    # in the original R file there was two different ways to filter SR and CR POIs. The only difference was a corrupted
+    # entry for CR POIs but when running on python I didn't run into the same error Panick got so it seemed that the
+    # function I wrote for SR POIs
     filtered_sr_POIs, filtered_sr_POIs_filename = filter_SR_POI(POI_SR_path, save_path)
-    filtered_cr_POIs, filtered_sr_POIs_filename = filter_CR_POI(POI_CR_path, save_path)
+    # filtered_cr_POIs, filtered_sr_POIs_filename = filter_CR_POI(POI_CR_path, save_path)
+    filtered_cr_POIs, filtered_sr_POIs_filename = filter_SR_POI(POI_CR_path, save_path)
     return filtered_sr_POIs, filtered_sr_POIs_filename, filtered_cr_POIs, filtered_sr_POIs_filename
+
 
 def filter_POIs(gdb_path, POI_layer, save_path):
     filtered_POIs, filtered_POIs_filename = filter_SR_POI((gdb_path, POI_layer), save_path)

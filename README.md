@@ -29,6 +29,13 @@ pip install pygris
 
 <img src="./assets/Screenshot.png" alt="Screenshot of the cloning process" width="700">
 
+#### If you need to work in a jupyter notebook with this environment:
+option1: Set your IDE (e.g. Pycharm) environment to the new env and open the .ipynb file in the IDE
+
+option2: Follow instructions on the link below and open your jupyter notebook as you normally would.
+https://medium.com/@nrk25693/how-to-add-your-conda-environment-to-your-jupyter-notebook-in-just-4-steps-abeab8b8d084
+
+* you may also need to install folium for interactive maps on notebook `conda install folium -y`
 
 ## how to use the code
 - Open  a project on ArcGIS pro
@@ -43,15 +50,19 @@ pip install pygris
 - 
 
 ## some notes:
-- instruction on how to organize input files so that people don't have to have a lot of inputs
+- suggestion: when developing the code and for debugging purposes, use `test.py` which runs `RuralATGapFinder.py`.
+When you want to check the tool on ArcGIS, make a copy of `RuralATGapFinder.py` and name it `RuralATGapFinder.pyt`. 
+When you have the `pyt` file, make sure the `pyt` file runs `_extract_params_from_arcGIS` function in 
+the beginning of `execute` function. 
+- `ERROR 000464: Cannot get exclusive schema lock.`
 - try to have everything all gpd so that you can open source your code
 - read ToDo comments
-- right outside criteria is really good? 
+- Is right outside criteria really good? 
 - bad geometries in parcel gdf - use repair geometries tool or make_valid or ogr2ogr?
 be mindful of crs conversions in the notebook file
 
-some CBGs after filtering steps only have water. somehow we should remove them
+- some CBGs after filtering steps only have water. somehow we should remove them
 
-in filter_CBGs_by_area_and_columns function, the line `
+- in filter_CBGs_by_area_and_columns function, the line `
     study_CBGs = gpd.clip(study_CBGs, studyarea_gdf)` results in a removing more water area. If we remove this line,
 results will be identical with the R file

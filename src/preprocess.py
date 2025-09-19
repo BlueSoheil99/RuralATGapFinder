@@ -79,8 +79,8 @@ def get_study_area(state, counties, save_map_path=None):
         plt.title(f"{state} Study Area Counties")
         plt.savefig(save_map_path)
         print("---- \t map saved to {}".format(save_map_path))
-    # return studyarea, state_FIPS  # original code
-    return studyarea.to_crs(CRS), state_FIPS
+    return studyarea, state_FIPS  # original code
+    # return studyarea.to_crs(CRS), state_FIPS
 
 
 def get_smart_location_db(database_path, state_fips, database_layer="EPA_SLD_Database_V3"):
@@ -144,9 +144,7 @@ def filter_CBGs_by_pop_center(CBG_gdf, pop_center_gdf):
     # if we use: WA_CBG_outside_PCs = study_CBGs[WA_SLD_study.intersects_w_pop_center==True].to_crs(32610)
     # which is the study CBGs with water, we can get exactly 1335 rows
     # if we get geometryCollection entries (which may contain lines) we remove those lines and only keep polygons
-    mask = (
-            CBGs_outside_PCs.geometry.type == 'GeometryCollection'
-    )
+    mask = CBGs_outside_PCs.geometry.type == 'GeometryCollection'
     CBGs_outside_PCs.loc[mask, "geometry"] = (
         CBGs_outside_PCs.loc[mask, "geometry"].apply(_geomcollection_to_multipolygon)
     )
@@ -292,14 +290,26 @@ def export_summary_statistics(CBG_gdf):
     return descript_summary
 
 
-def save_files(save_dir, descript_summary, studyarea, CBG_outside_pc_gdf, CBG_outside_gdf, population_centers_study_area):
+def save_files(save_dir, descript_summary, studyarea, study_CBGs, CBG_outside_pc_gdf, CBG_outside_gdf, population_centers_study_area):
     print('\n ---- saving files:')
     path = os.path.join(save_dir,'descript_category_0.xlsx')
     descript_summary.to_excel(path)
     print(f"saved {path}")
 
+    # new -- not sure if make_valids are helpful
+    studyarea.loc[:, 'geometry'] = studyarea.geometry.make_valid()
+    population_centers_study_area.loc[:, 'geometry'] = population_centers_study_area.geometry.make_valid()
+    study_CBGs.loc[:, 'geometry'] = study_CBGs.geometry.make_valid()
+    CBG_outside_pc_gdf.loc[:, 'geometry'] = CBG_outside_pc_gdf.geometry.make_valid()
+    CBG_outside_gdf.loc[:, 'geometry'] = CBG_outside_gdf.geometry.make_valid()
+
     _save_geopackage(studyarea, save_dir, "studyarea.gpkg", driver="GPKG")
-    print(f"saved study area data to studyarea.gpkg")
+    # print(f"saved study area data to studyarea.gpkg")
+
+    _save_geopackage(population_centers_study_area, save_dir,
+                     "POPULATION_CENTERS_STUDY_AREA.gpkg", driver="GPKG")
+
+    _save_geopackage(study_CBGs, save_dir, "study_area_CBGs_INCOME.gpkg", driver="GPKG")
 
 
     path = os.path.join(save_dir, 'CBG_outside_PCs_data_0.xlsx')
@@ -312,52 +322,74 @@ def save_files(save_dir, descript_summary, studyarea, CBG_outside_pc_gdf, CBG_ou
     CBG_outside_pc_data_1.to_excel(path, index=False)
     print(f"saved subsetted data to CBG_outside_PCs_data_1.xlsx")
 
-    _save_geopackage(population_centers_study_area, save_dir,
-                     "POPULATION_CENTERS_STUDY_AREA.gpkg", driver="GPKG")
     _save_geopackage(CBG_outside_gdf, save_dir, "CBGs_NOT_INTERSECT_PCs.gpkg", driver='GPKG')
     _save_geopackage(CBG_outside_pc_gdf, save_dir, "CBGs_RIGHT_OUTSIDE_PCs.gpkg", driver='GPKG')
+    _save_geopackage(CBG_outside_pc_gdf, os.path.join(save_dir, 'cbg_out_pc_shapefile'),
+                     "CBGs_RIGHT_OUTSIDE_PCs.shp")
     # print('saved POPULATION_CENTERS_WA_AREA.gpkg, CBGs_NOT_INTERSECT_PCs.gpkg, CBGs_RIGHT_OUTSIDE_PCs.gpkg')
 
 
 
 def preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_path, parcel_path, save_path=None):
-    # studyarea, state_FIPS = gpd.read_file(os.path.join(save_path, 'temp.shp')), '53'
     studyarea, state_FIPS = get_study_area(state_in, counties_in)
     state_SLD_CBGs = get_smart_location_db(sld_gdb_path, state_FIPS)
     study_CBGs = filter_CBGs_by_area_and_columns(state_SLD_CBGs, studyarea)
-    # _save_geopackage(study_CBGs, save_path, "study_area_CBGs_inital.gpkg", driver="GPKG") #todo move to save function
     study_CBGs = add_income_to_CBGs(study_CBGs)
-    _save_geopackage(study_CBGs, save_path, "study_area_CBGs_INCOME.gpkg", driver="GPKG") #todo move to save function
-    # a = study_CBGs['LowWage_Combined_home_work'].value_counts().reset_index() #debug
     population_centers = read_population_centers(pop_ctr_path)
-    pop_centers_study_area = gpd.clip(population_centers, study_CBGs) # Unnessecary
+    pop_centers_study_area = gpd.clip(population_centers, study_CBGs)
     # population centers within the study area
     study_CBGs_outside_PCs, study_CBGs_with_PCs, study_CBGs_outside = (
         filter_CBGs_by_pop_center(study_CBGs, pop_centers_study_area)
     )
     area_type = read_area_type_data(nces_path)
     # now we find the area type of each CBG that intersects with population centers
+
     study_CBGs_outside_PCs = filter_CBGs_by_area_type(study_CBGs_outside_PCs, area_type)
 
     descript_summary = export_summary_statistics(study_CBGs_outside_PCs)
     if save_path:
-        save_files(save_path, descript_summary, studyarea, study_CBGs_outside_PCs,
+        save_files(save_path, descript_summary, studyarea, study_CBGs, study_CBGs_outside_PCs,
                    study_CBGs_outside, pop_centers_study_area)
 
-    preprocess_parcels(parcel_path, studyarea, save_path)  # this was not part of the original R file
+    preprocess_parcels(parcel_path, studyarea, pop_centers_study_area, save_path)  # this was not part of the original R file
+    # todo: comment it if you don't want to create the file again. later, write a code that runs this
+    #  if the parcel_filtered file is not already written
 
-    return studyarea, study_CBGs, study_CBGs_outside_PCs, study_CBGs_outside, study_CBGs_with_PCs, pop_centers_study_area
 
 
-def preprocess_parcels(parcels_path, studyarea, save_path):
-    print('\n---- Preparing parcels inside studyarea and validating their geometries')
-    parcel_gdf = gpd.read_file(parcels_path).to_crs(32610)
+def preprocess_parcels(parcels_path, studyarea, pop_centers, save_path):
+    print('\n---- Preparing residential parcels inside studyarea and validating their geometries')
+    parcel_gdf = gpd.read_file(parcels_path).to_crs(CRS)
     mask = parcel_gdf[landuse_code_field].isin([11, 12, 13, 14, 15])
     parcel_gdf = parcel_gdf[mask]
-    parcel_gdf = parcel_gdf.make_valid()
-    studyarea_gdf = studyarea.to_crs(CRS)
-    parcels_in_cbg_gdf = gpd.clip(parcel_gdf.to_crs(32610), studyarea_gdf.to_crs(32610))
-    _save_geopackage(parcels_in_cbg_gdf, save_path, 'parcels_in_cbgs.gpkg', driver='GPKG')
+    print('making the geometery valid (remove if the file works fine)')
+    parcel_gdf.loc[:, 'geometry'] = parcel_gdf.geometry.make_valid()
+    print('removing parcels that are outside of studyarea')
+    parcels_in_cbg_gdf = gpd.clip(parcel_gdf, studyarea.to_crs(CRS))
+    _save_geopackage(parcels_in_cbg_gdf, save_path, 'parcels_in_studyarea.gpkg', driver='GPKG')
+    # parcels_in_cbg_gdf = gpd.read_file(os.path.join(save_path, 'parcels_in_studyarea.gpkg'))
+
+    # Reproject both masks to same CRS
+    # studyarea_utm = studyarea.to_crs(CRS)
+    # pop_centers_utm = pop_centers.to_crs(CRS)
+    # Make one giant geometry for each
+    # study_union = studyarea_utm.unary_union
+    # pop_union = pop_centers_utm.unary_union
+    # # Subtract population centers from study area
+    # mask_geom = study_union.difference(pop_union)
+    # # Wrap in GeoSeries so we can use it as mask
+    # combined_mask = gpd.GeoSeries([mask_geom], crs=studyarea_utm.crs)
+    # combined_mask.to_file(os.path.join(save_path, 'giant_mask.shp'))  # For DEBUG
+    # # Clip parcels: keep inside studyarea but outside pop_centers
+    # parcels_in_cbg_gdf = gpd.clip(parcel_gdf, combined_mask)
+    # # suggestion: first make a convex hull of the mask and include parcels inside that before performing the 'clip' func
+
+    print('removing parcels that are inside pop centers ---- NOT DONE. current method is too long')
+    # pop_centers_utm = pop_centers.to_crs(CRS)
+    # pop_union = pop_centers_utm.unary_union
+    # parcels_in_cbg_gdf["geometry"] = parcels_in_cbg_gdf.geometry.apply(lambda g: g.difference(pop_union))
+    # parcels_in_cbg_gdf = parcels_in_cbg_gdf[~parcels_in_cbg_gdf.geometry.is_empty]
+    _save_geopackage(parcels_in_cbg_gdf, save_path, 'parcels_out_pc.gpkg', driver='GPKG')
 
 
 if __name__ == '__main__':
@@ -373,9 +405,5 @@ if __name__ == '__main__':
     POI_path = r"C:/Users/Soheil99/OneDrive - UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/POI Data/WA_Study_Area.geojson"
     save_path = r"C:\Users\Soheil99\OneDrive - UW\0 Research\UW Tacoma\my copy - Satellite Communities Project\Analysis\RuralATGapFinder\out"
 
-    # sld_gdb_path = r"/Users/soheil/Library/CloudStorage/OneDrive-UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/SmartLocationDatabase.gdb"
-    # pop_ctr_path = r"/Users/soheil/Library/CloudStorage/OneDrive-UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/WSDOT_-_Population_Centers/WSDOT_-_Population_Centers.shp"
-    # nces_WA_path = r"/Users/soheil/Library/CloudStorage/OneDrive-UW/0 Research/UW Tacoma/my copy - Satellite Communities Project/Data/edge_locale24_nces_WA"
-    # save_path = r"/Users/soheil/Library/CloudStorage/OneDrive-UW/0 Research\UW Tacoma\my copy - Satellite Communities Project\Analysis\RuralATGapFinder\out"
     preprocess(state_in, counties_in, sld_gdb_path, pop_ctr_path, nces_WA_path, save_path=save_path)
 
